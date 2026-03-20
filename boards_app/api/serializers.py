@@ -5,6 +5,14 @@ from ..models import Board
 User = get_user_model()
 
 
+class UserMinimalSerializer(serializers.ModelSerializer):
+    """Serializer for displaying minimal user information."""
+
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'fullname']
+
+
 class BoardSerializer(serializers.ModelSerializer):
     """Serializer for displaying board list with computed statistics."""
 
@@ -15,8 +23,10 @@ class BoardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Board
-        fields = ['id', 'title', 'member_count', 'ticket_count',
-                  'tasks_to_do_count', 'tasks_high_prio_count', 'owner_id']
+        fields = [
+            'id', 'title', 'member_count', 'ticket_count',
+            'tasks_to_do_count', 'tasks_high_prio_count', 'owner_id'
+        ]
 
     def get_member_count(self, obj):
         """Returns the number of members in the board."""
@@ -33,6 +43,37 @@ class BoardSerializer(serializers.ModelSerializer):
     def get_tasks_high_prio_count(self, obj):
         """Returns the number of tasks with priority 'high'."""
         return obj.tasks.filter(priority='high').count()
+
+
+class BoardDetailSerializer(serializers.ModelSerializer):
+    """Serializer for displaying full board
+      details including members and tasks."""
+
+    owner_id = serializers.IntegerField(source='owner.id', read_only=True)
+    members = UserMinimalSerializer(many=True, read_only=True)
+    tasks = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Board
+        fields = ['id', 'title', 'owner_id', 'members', 'tasks']
+
+    def get_tasks(self, obj):
+        """Returns all tasks belonging to the board."""
+        from tasks_app.api.serializers import TaskSerializer
+        return TaskSerializer(obj.tasks.all(), many=True).data
+
+
+class BoardPatchSerializer(serializers.ModelSerializer):
+    """Serializer for displaying board
+      after PATCH with owner and members data."""
+
+    owner_data = UserMinimalSerializer(source='owner', read_only=True)
+    members_data = UserMinimalSerializer(
+        source='members', many=True, read_only=True)
+
+    class Meta:
+        model = Board
+        fields = ['id', 'title', 'owner_data', 'members_data']
 
 
 class BoardCreateSerializer(serializers.ModelSerializer):

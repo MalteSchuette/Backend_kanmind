@@ -2,7 +2,8 @@ from django.db import models
 
 
 class Task(models.Model):
-    """Represents a task within a board, with status, priority, assignee and reviewer."""
+    """Represents a task within a board.
+    Has status, priority, assignee and reviewer."""
 
     STATUS_CHOICES = [
         ('to-do', 'To Do'),
@@ -24,12 +25,23 @@ class Task(models.Model):
     priority = models.CharField(
         max_length=50, choices=PRIORITY_CHOICES, default='medium')
     assignee = models.ForeignKey(
-        'users_app.User', on_delete=models.SET_NULL, null=True, related_name='assigned_tasks')
+        'users_app.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='assigned_tasks'
+    )
     reviewer = models.ForeignKey(
-        'users_app.User', on_delete=models.SET_NULL, null=True, related_name='reviewed_tasks')
+        'users_app.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='reviewed_tasks'
+    )
     due_date = models.DateField(null=True, blank=True)
     board = models.ForeignKey(
-        'boards_app.Board', on_delete=models.CASCADE, related_name='tasks')
+        'boards_app.Board',
+        on_delete=models.CASCADE,
+        related_name='tasks'
+    )
 
     def __str__(self):
         return self.title
@@ -40,7 +52,11 @@ class Comment(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(
-        'users_app.User', on_delete=models.SET_NULL, null=True, related_name='comments')
+        'users_app.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='comments'
+    )
     task = models.ForeignKey(
         Task, on_delete=models.CASCADE, related_name='comments')
     content = models.TextField()

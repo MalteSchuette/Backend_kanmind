@@ -1,9 +1,21 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_201_CREATED, HTTP_404_NOT_FOUND, HTTP_403_FORBIDDEN, HTTP_204_NO_CONTENT
+from rest_framework.status import (
+    HTTP_400_BAD_REQUEST,
+    HTTP_201_CREATED,
+    HTTP_404_NOT_FOUND,
+    HTTP_403_FORBIDDEN,
+    HTTP_204_NO_CONTENT
+)
 
-from tasks_app.api.serializers import TaskSerializer, TaskCreateSerializer, CommentSerializer, CommentCreateSerializer
+from tasks_app.api.serializers import (
+    TaskSerializer,
+    TaskCreateSerializer,
+    TaskPatchSerializer,
+    CommentSerializer,
+    CommentCreateSerializer
+)
 from tasks_app.api.permissions import IsTaskBoardMemberOrOwner, IsCommentAuthor
 from tasks_app.models import Task, Comment
 
@@ -15,7 +27,8 @@ class AssignedToMeView(APIView):
 
     def get(self, request):
         """Returns a list of tasks where the user is the assignee."""
-        return Response(TaskSerializer(request.user.assigned_tasks.all(), many=True).data)
+        tasks = request.user.assigned_tasks.all()
+        return Response(TaskSerializer(tasks, many=True).data)
 
 
 class ReviewedByMeView(APIView):
@@ -25,7 +38,8 @@ class ReviewedByMeView(APIView):
 
     def get(self, request):
         """Returns a list of tasks where the user is the reviewer."""
-        return Response(TaskSerializer(request.user.reviewed_tasks.all(), many=True).data)
+        tasks = request.user.reviewed_tasks.all()
+        return Response(TaskSerializer(tasks, many=True).data)
 
 
 class TasksView(APIView):
@@ -34,11 +48,21 @@ class TasksView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        """Creates a new task and returns the full task details."""
+        """Creates a new task if the user is a board member."""
         serializer = TaskCreateSerializer(data=request.data)
         if serializer.is_valid():
+            board = serializer.validated_data.get('board')
+            if (request.user not in board.members.all()
+                    and request.user != board.owner):
+                return Response(
+                    {'error': 'You must be a member of the board.'},
+                    status=HTTP_403_FORBIDDEN
+                )
             task = serializer.save()
-            return Response(TaskSerializer(task).data, status=HTTP_201_CREATED)
+            return Response(
+                TaskSerializer(task).data,
+                status=HTTP_201_CREATED
+            )
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
 
@@ -55,13 +79,20 @@ class TaskDetailView(APIView):
             return None
 
     def patch(self, request, task_id):
-        """Partially updates a task."""
+        """Partially updates a task. Board cannot be changed."""
         task = self.get_task(task_id)
         if not task:
-            return Response({'error': 'Task not found'}, status=HTTP_404_NOT_FOUND)
-        if not IsTaskBoardMemberOrOwner().has_object_permission(request, self, task):
-            return Response({'error': 'You do not have permission'}, status=HTTP_403_FORBIDDEN)
-        serializer = TaskCreateSerializer(
+            return Response(
+                {'error': 'Task not found'},
+                status=HTTP_404_NOT_FOUND
+            )
+        if not IsTaskBoardMemberOrOwner().has_object_permission(
+                request, self, task):
+            return Response(
+                {'error': 'You do not have permission'},
+                status=HTTP_403_FORBIDDEN
+            )
+        serializer = TaskPatchSerializer(
             task, data=request.data, partial=True)
         if serializer.is_valid():
             return Response(TaskSerializer(serializer.save()).data)
@@ -71,9 +102,16 @@ class TaskDetailView(APIView):
         """Deletes a task if the user is a board member or owner."""
         task = self.get_task(task_id)
         if not task:
-            return Response({'error': 'Task not found'}, status=HTTP_404_NOT_FOUND)
-        if not IsTaskBoardMemberOrOwner().has_object_permission(request, self, task):
-            return Response({'error': 'You do not have permission'}, status=HTTP_403_FORBIDDEN)
+            return Response(
+                {'error': 'Task not found'},
+                status=HTTP_404_NOT_FOUND
+            )
+        if not IsTaskBoardMemberOrOwner().has_object_permission(
+                request, self, task):
+            return Response(
+                {'error': 'You do not have permission'},
+                status=HTTP_403_FORBIDDEN
+            )
         task.delete()
         return Response(status=HTTP_204_NO_CONTENT)
 
@@ -94,22 +132,41 @@ class TaskCommentListView(APIView):
         """Returns all comments for a specific task."""
         task = self.get_task(task_id)
         if not task:
-            return Response({'error': 'Task not found'}, status=HTTP_404_NOT_FOUND)
-        if not IsTaskBoardMemberOrOwner().has_object_permission(request, self, task):
-            return Response({'error': 'You do not have permission'}, status=HTTP_403_FORBIDDEN)
-        return Response(CommentSerializer(task.comments.all(), many=True).data)
+            return Response(
+                {'error': 'Task not found'},
+                status=HTTP_404_NOT_FOUND
+            )
+        if not IsTaskBoardMemberOrOwner().has_object_permission(
+                request, self, task):
+            return Response(
+                {'error': 'You do not have permission'},
+                status=HTTP_403_FORBIDDEN
+            )
+        return Response(
+            CommentSerializer(task.comments.all(), many=True).data
+        )
 
     def post(self, request, task_id):
         """Creates a new comment on a task."""
         task = self.get_task(task_id)
         if not task:
-            return Response({'error': 'Task not found'}, status=HTTP_404_NOT_FOUND)
-        if not IsTaskBoardMemberOrOwner().has_object_permission(request, self, task):
-            return Response({'error': 'You do not have permission'}, status=HTTP_403_FORBIDDEN)
+            return Response(
+                {'error': 'Task not found'},
+                status=HTTP_404_NOT_FOUND
+            )
+        if not IsTaskBoardMemberOrOwner().has_object_permission(
+                request, self, task):
+            return Response(
+                {'error': 'You do not have permission'},
+                status=HTTP_403_FORBIDDEN
+            )
         serializer = CommentCreateSerializer(data=request.data)
         if serializer.is_valid():
             comment = serializer.save(author=request.user, task=task)
-            return Response(CommentSerializer(comment).data, status=HTTP_201_CREATED)
+            return Response(
+                CommentSerializer(comment).data,
+                status=HTTP_201_CREATED
+            )
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
 
@@ -123,8 +180,15 @@ class TaskCommentDetailView(APIView):
         try:
             comment = Comment.objects.get(id=comment_id)
         except Comment.DoesNotExist:
-            return Response({'error': 'Comment not found'}, status=HTTP_404_NOT_FOUND)
-        if not IsCommentAuthor().has_object_permission(request, self, comment):
-            return Response({'error': 'You do not have permission'}, status=HTTP_403_FORBIDDEN)
+            return Response(
+                {'error': 'Comment not found'},
+                status=HTTP_404_NOT_FOUND
+            )
+        if not IsCommentAuthor().has_object_permission(
+                request, self, comment):
+            return Response(
+                {'error': 'You do not have permission'},
+                status=HTTP_403_FORBIDDEN
+            )
         comment.delete()
         return Response(status=HTTP_204_NO_CONTENT)
