@@ -9,6 +9,7 @@ from rest_framework.status import (
     HTTP_204_NO_CONTENT
 )
 
+from boards_app.models import Board
 from tasks_app.api.serializers import (
     TaskSerializer,
     TaskCreateSerializer,
@@ -49,6 +50,14 @@ class TasksView(APIView):
 
     def post(self, request):
         """Creates a new task if the user is a board member."""
+        board_id = request.data.get('board')
+        try:
+            board = Board.objects.get(id=board_id)
+        except Board.DoesNotExist:
+            return Response(
+            {'error': 'Board not found'},
+            status=HTTP_404_NOT_FOUND
+        )
         serializer = TaskCreateSerializer(data=request.data)
         if serializer.is_valid():
             board = serializer.validated_data.get('board')

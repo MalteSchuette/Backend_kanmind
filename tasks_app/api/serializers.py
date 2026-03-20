@@ -103,11 +103,11 @@ class CommentSerializer(serializers.ModelSerializer):
     """Serializer for displaying comment
       details including nested author info."""
 
-    author = UserMinimalSerializer(read_only=True)
+    author = serializers.CharField(source='author.fullname', read_only=True)
 
     class Meta:
         model = Comment
-        fields = ['id', 'created_at', 'author', 'task', 'content']
+        fields = ['id', 'created_at', 'author', 'content']
 
 
 class CommentCreateSerializer(serializers.ModelSerializer):
