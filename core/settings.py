@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'users_app',
-    'boards_app', 
+    'boards_app',
     'tasks_app',
     'rest_framework',
     'rest_framework.authtoken',
@@ -56,7 +56,7 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'users_app.User'
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', 
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
